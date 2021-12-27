@@ -1,0 +1,28 @@
+pragma soliditypp ^0.4.3;
+
+import "./IVRC721.solpp";
+
+// using `contract` instead of `interface` because in solpp 0.4, interfaces cannot inherit.
+contract IVRC721Metadata is IVRC721 {
+	// Send the token collection `name`.
+	message receiveName(string name);
+	// Send the token collection `symbol`.
+	message receiveSymbol(string symbol);
+	// Send the Uniform Resource Identifier (URI) for `nftId` token.
+	message receiveTokenURI(uint256 nftId, string tokenURI);
+
+	// {requestName} calls `send(msg.sender, receiveName(...));`.
+	onMessage requestName();
+	// {getName} returns info similar to `receiveName`.
+	getter getName() returns (string memory name);
+
+	// {requestSymbol} calls `send(msg.sender, receiveSymbol(...));`.
+	onMessage requestSymbol();
+	// {getSymbol} returns info similar to `receiveSymbol`.
+	getter getSymbol() returns (string memory symbol);
+
+	// {requestTokenURI} calls `send(msg.sender, receiveTokenURI(...));`.
+	onMessage requestTokenURI(uint256 nftId);
+	// {getTokenURI} returns info similar to `receiveTokenURI`, but without `nftId`.
+	getter getTokenURI(uint256 nftId) returns (string memory tokenuri);
+}

@@ -1,0 +1,28 @@
+pragma soliditypp ^0.4.3;
+
+import "./IVRC721.solpp";
+
+// Using `contract` instead of `interface` because in solpp 0.4, interfaces cannot inherit.
+contract IVRC721Enumerable is IVRC721 {
+	// Send `totalSupply`of NFTs stored by the contract.
+	message receiveTotalSupply(uint256 totalSupply);
+	// Send `nftId` of NFT owned by `owner` at a given `index` of its NFT list.
+	message receiveTokenOfOwnerByIndex(address owner, uint256 index, uint256 nftId);
+	// Send `nftId` of NFT at a given `index` of all the NFTs stored by the contract.
+	message receiveTokenByIndex(uint256 index, uint256 nftId);
+
+	// {requestTotalSupply} calls `send(msg.sender, receiveTotalSupply(...));`.
+	onMessage requestTotalSupply();
+	// {getTotalSupply} returns info similar to `receiveTotalSupply`.
+	getter getTotalSupply() returns (uint256 totalSupply);
+
+	// {requestTokenOfOwnerByIndex} calls `send(msg.sender, receiveTokenOfOwnerByIndex(...));`.
+	onMessage requestTokenOfOwnerByIndex(address owner, uint256 index);
+	// {getTokenOfOwnerByIndex} returns info similar to `receiveTokenOfOwnerByIndex`, but without `owner` or `index`.
+	getter getTokenOfOwnerByIndex(address owner, uint256 index) returns (uint256 nftId);
+
+	// {requestTokenByIndex} calls `send(msg.sender, receiveTokenByIndex(...));`.
+	onMessage requestTokenByIndex(uint256 index);
+	// {getTokenByIndex} returns info similar to `receiveTokenByIndex`, but without `index`.
+	getter getTokenByIndex(uint256 index) returns (uint256 nftId);
+}

@@ -1,0 +1,28 @@
+pragma soliditypp ^0.4.3;
+
+import "./standards/VRC721Enumerable.solpp";
+
+// Inspired by https://github.com/WillChomrak/Solidity-NFT-Minting-Contract/blob/main/NFT-Minter.sol
+contract VRC721EnumerableMock is VRC721Enumerable {
+	uint256 public maxSupply = 4;
+
+	onMessage mint(address _to, uint256 nftId) payable { 
+		require(_getTotalSupply() + 1 <= maxSupply, "max NFT limit exceeded");
+		_mint(_to, nftId);
+	}
+
+	onMessage burn(uint256 nftId) {
+		require(_isApprovedOrOwner(msg.sender, nftId));
+		_burn(nftId);
+	}
+
+	// Returns list of all token ids owned by given wallet
+	getter getCollectionByOwner(address nftOwner) returns (uint256[] memory) {
+		uint256 ownerTokenCount = _getBalanceOf(nftOwner);
+		uint256[] memory nftIds = new uint256[](ownerTokenCount); 
+		for (uint256 i; i < ownerTokenCount; i++) { 
+			nftIds[i] = _getTokenOfOwnerByIndex(nftOwner, i); 
+		}
+		return nftIds;
+	}
+}

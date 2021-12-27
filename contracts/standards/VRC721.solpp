@@ -1,0 +1,153 @@
+pragma soliditypp ^0.4.3;
+
+import "./IVRC721.solpp";
+
+contract VRC721 is IVRC721 {
+	// mapping(nftId => owner)
+	mapping(uint256 => address) private _owners;
+	// mapping(address => nftCount)
+	mapping(address => uint256) private _balances;
+	// mapping(nftId => approvedAddress)
+	mapping(uint256 => address) private _tokenApprovals;
+	// mapping(owner => mapping(operator => approved))
+	mapping(address => mapping(address => bool)) private _operatorApprovals;	
+
+	// See {IVRC721-requestBalanceOf}.
+	onMessage requestBalanceOf(address owner) {
+		send(msg.sender, receiveBalanceOf(owner, _getBalanceOf(owner)));
+	}
+
+	// See {IVRC721-getBalanceOf}.
+	getter getBalanceOf(address owner) returns (uint256 balance) {
+		return _getBalanceOf(owner);
+	}
+
+	function _getBalanceOf(address owner) public view returns (uint256) {
+		require(owner != address(0), "VRC721: balance query for the zero address");
+		return _balances[owner];
+	}
+
+	// See {IVRC721-requestOwnerOf}.
+	onMessage requestOwnerOf(uint256 nftId) {
+		send(msg.sender, receiveOwnerOf(nftId, _owners[nftId]));
+	}
+
+	// See {IVRC721-getOwnerOf}.
+	getter getOwnerOf(uint256 nftId) returns (address owner) {
+		return _owners[nftId];
+	}
+
+	function _getOwnerOf(uint256 nftId) internal view returns (address owner) {
+		return _owners[nftId];
+	}
+
+	// See {IVRC721-transferFrom}.
+	onMessage transferFrom(address from, address to, uint256 nftId) {
+		require(_isApprovedOrOwner(msg.sender, nftId), "VRC721: transfer caller is not owner nor approved");
+		_transfer(from, to, nftId);
+	}
+
+	function _transfer(address from, address to, uint256 nftId) internal {
+		require(_getOwnerOf(nftId) == from, "VRC721: transfer of token that is not own");
+		require(to != address(0), "VRC721: transfer to the zero address");
+		// Clear approvals from the previous owner
+		_approve(address(0), nftId);
+		_balances[from] -= 1;
+		_balances[to] += 1;
+		_owners[nftId] = to;
+		emit Transfer(from, to, nftId);
+	}
+
+	// See {IVRC721-approve}.
+	onMessage approve(address to, uint256 nftId) {
+		address owner = _getOwnerOf(nftId);
+		require(
+			msg.sender == owner || _operatorApprovals[owner][msg.sender],
+			"VRC721: approve caller is not owner nor approved for all"
+		);
+		_approve(to, nftId);
+	}
+
+	function _approve(address to, uint256 nftId) internal {
+		_tokenApprovals[nftId] = to;
+		emit Approval(_getOwnerOf(nftId), to, nftId);
+	}
+
+	// See {IVRC721-requestApproved}.
+	onMessage requestApproved(uint256 nftId) {
+		send(msg.sender, receiveApproved(nftId, _getApproved(nftId)));
+	}
+
+	// See {IVRC721-getApproved}.
+	getter getApproved(uint256 nftId) returns (address approved) {
+		return _getApproved(nftId);
+	}
+
+	function _getApproved(uint256 nftId) internal view returns (address approved) {
+		return _tokenApprovals[nftId];
+	}
+
+	// See {IVRC721-setApprovalForAll}.
+	onMessage setApprovalForAll(address operator, bool approved) {
+		require(msg.sender != operator, "VRC721: approve to caller");
+		_operatorApprovals[msg.sender][operator] = approved;
+		emit ApprovalForAll(msg.sender, operator, approved);
+	}
+
+	// See {IVRC721-requestIsApprovedForAll}.
+	onMessage requestIsApprovedForAll(address owner, address operator) {
+		send(msg.sender, receiveIsApprovedForAll(owner, operator, _getIsApprovedForAll(owner, operator)));
+	}
+
+	// See {IVRC721-getIsApprovedForAll}.
+	getter getIsApprovedForAll(address owner, address operator) returns (bool isApprovedForAll) {
+		return _getIsApprovedForAll(owner, operator);
+	}
+
+	function _getIsApprovedForAll(address owner, address operator) internal view returns (bool isApprovedForAll) {
+		return _operatorApprovals[owner][operator];
+	}
+
+	// {_exists} returns whether `nftId` exists.
+	// NFTs start existing when they are minted (`_mint`),
+	// and stop existing when they are burned (`_burn`).
+	function _exists(uint256 nftId) internal view returns (bool exists) {
+		return _owners[nftId] != address(0);
+	}
+
+	// {_isApprovedOrOwner} returns whether or not `spender` is allowed to manage `nftId`.
+	// NFTs can be managed by their owner or approved accounts via {approve} or {setApprovalForAll}.
+	// Requirements:
+	// - `nftId` must exist.
+	function _isApprovedOrOwner(address spender, uint256 nftId) internal view returns (bool isApprovedOrOwner) {
+		require(_exists(nftId), "VRC721: operator query for nonexistent NFT");
+		address owner = _owners[nftId];
+		return spender == owner || _tokenApprovals[nftId] == spender || _operatorApprovals[owner][spender];
+	}
+
+	// {_mint} mints `nftId` and transfers it to `to`.
+	// Requirements:
+	// - `nftId` must not exist.
+	// - `to` cannot be the zero address.
+	// Emits a {Transfer} event.
+	function _mint(address to, uint256 nftId) internal {
+		require(to != address(0), "VRC721: mint to the zero address");
+		require(!_exists(nftId), "VRC721: token already minted");
+		_balances[to] += 1;
+		_owners[nftId] = to;
+		emit Transfer(address(0), to, nftId);
+	}
+
+	// {_burn} destroys `nftId`.
+	// The approval is cleared when the nft is burned.
+	// Requirements:
+	// - `nftId` must exist.
+	// Emits a {Transfer} event.
+	function _burn(uint256 nftId) internal {
+		address owner = _owners[nftId];
+		_approve(address(0), nftId);
+		_balances[owner] -= 1;
+		delete _owners[nftId];
+		emit Transfer(owner, address(0), nftId);
+	}
+}

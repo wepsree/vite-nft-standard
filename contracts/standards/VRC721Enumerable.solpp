@@ -1,0 +1,151 @@
+pragma soliditypp ^0.4.3;
+
+import "./VRC721.solpp";
+import "./IVRC721Enumerable.solpp";
+
+// This implements an optional extension of {VRC721} which adds enumerability of all
+// the nftIds in the contract as well as all nftIds owned by each account.
+
+contract VRC721Enumerable is VRC721, IVRC721Enumerable {
+	// mapping(owner => mapping(ownedTokenIndex => nftId))
+	mapping(address => mapping(uint256 => uint256)) private _ownedTokens;
+
+	// mapping(nftId => ownedTokenIndex) of `_ownedTokens`
+	mapping(uint256 => uint256) private _ownedTokensIndex;
+
+	// Array with all nftIds, used for enumeration
+	uint256[] private _allTokens;
+
+	// mapping(nftId => allTokenIndex) in `_allTokens`
+	mapping(uint256 => uint256) private _allTokensIndex;
+
+	// See {IVRC721Enumerable-requestTotalSupply}
+	onMessage requestTotalSupply() {
+		send(msg.sender, receiveTotalSupply(_allTokens.length));
+	}
+
+	// See {IVRC721Enumerable-getTotalSupply}
+	getter getTotalSupply() returns (uint256 totalSupply) {
+		return _allTokens.length;
+	}
+
+	function _getTotalSupply() public view returns (uint256 totalSupply) {
+		return _allTokens.length;
+	}
+
+	// See {IVRC721Enumerable-requestTokenOfOwnerByIndex}
+	onMessage requestTokenOfOwnerByIndex(address owner, uint256 index) {
+		uint256 nftId = _getTokenOfOwnerByIndex(owner, index);
+		send(msg.sender, receiveTokenOfOwnerByIndex(owner, index, nftId));
+	}
+
+	// See {IVRC721Enumerable-getTokenOfOwnerByIndex}
+	getter getTokenOfOwnerByIndex(address owner, uint256 index) returns (uint256 nftId) {
+		return _getTokenOfOwnerByIndex(owner, index);
+	}
+
+	function _getTokenOfOwnerByIndex(address owner, uint256 index) public view returns (uint256 nftId) {
+		require(index < VRC721._getBalanceOf(owner), "VRC721Enumerable: owner index out of bounds");
+		return _ownedTokens[owner][index];
+	}
+
+	// See {IVRC721Enumerable-requestTokenByIndex}
+	onMessage requestTokenByIndex(uint256 index) {
+		uint256 nftId = _getTokenByIndex(index);
+		send(msg.sender, receiveTokenByIndex(index, nftId));
+	}
+
+	// See {IVRC721Enumerable-getTokenByIndex}
+	getter getTokenByIndex(uint256 index) returns (uint256 nftId) {
+		return _getTokenByIndex(index);
+	}
+
+	function _getTokenByIndex(uint256 index) public view returns (uint256 nftId) {
+		require(index < _allTokens.length, "VRC721Enumerable: global index out of bounds");
+		return _allTokens[index];
+	}
+
+	// See {IVRC721-transferFrom}.
+	onMessage transferFrom(address from, address to, uint256 nftId) {
+		require(VRC721._isApprovedOrOwner(msg.sender, nftId));
+		_transfer(from, to, nftId);
+	}
+
+	// {_transfer} is like {VRC721._transfer}, but it also updates the token/ownership-tracking data structures.
+	function _transfer(address from, address to, uint256 nftId) internal {
+		_removeTokenFromOwnerEnumeration(from, nftId);
+		_addTokenToOwnerEnumeration(to, nftId);
+		VRC721._transfer(from, to, nftId);
+	}
+
+	// {_mint} is like {VRC721._mint}, but it also updates the token/ownership-tracking data structures.
+	function _mint(address to, uint256 nftId) internal {
+		_addTokenToAllTokensEnumeration(nftId);
+		_addTokenToOwnerEnumeration(to, nftId);
+		VRC721._mint(to, nftId);
+	}
+
+	// {_burn} is like {VRC721._burn}, but it also updates the token/ownership-tracking data structures.
+	function _burn(uint256 nftId) internal {
+		address owner = _getOwnerOf(nftId);
+		_removeTokenFromOwnerEnumeration(owner, nftId);
+		_removeTokenFromAllTokensEnumeration(nftId);
+		VRC721._burn(nftId);
+	}
+
+	// {_addTokenToOwnerEnumeration} adds `nftId` to this extension's
+	// ownership-tracking data structures for the new owner `to`.
+	function _addTokenToOwnerEnumeration(address to, uint256 nftId) private {
+		uint256 length = VRC721._getBalanceOf(to);
+		_ownedTokens[to][length] = nftId;
+		_ownedTokensIndex[nftId] = length;
+	}
+
+	// {_addTokenToAllTokensEnumeration} adds `nftId` to this extension's token-tracking data structures.
+	function _addTokenToAllTokensEnumeration(uint256 nftId) private {
+		_allTokensIndex[nftId] = _allTokens.length;
+		_allTokens.push(nftId);
+	}
+
+	// {_removeTokenFromOwnerEnumeration} removes `nftId` from this extension's ownership-tracking data structures
+	// for the previous owner `from`.
+	function _removeTokenFromOwnerEnumeration(address from, uint256 nftId) private {
+		// To prevent a gap in `_ownedTokens[from]`, we store the last token in the index of the token to delete, and
+		// then delete the last slot (swap and pop).
+		uint256 lastOwnedTokensIndex = VRC721._getBalanceOf(from) - 1;
+		uint256 tokenIndex = _ownedTokensIndex[nftId];
+
+		// When the token to delete is the last token in `_ownedTokens[from]`, the swap operation is unnecessary.
+		// However, if your dapp rarely deletes the last token from `_ownedTokens[from]`, you can delete the first
+		// and last line of this `if` statement keeping the code that swaps `lastOwnedTokensNftId` to save quota.
+		if (tokenIndex != lastOwnedTokensIndex) {
+			uint256 lastOwnedTokensNftId = _ownedTokens[from][lastOwnedTokensIndex];
+			_ownedTokensIndex[lastOwnedTokensNftId] = tokenIndex; // Update the moved token's index
+			_ownedTokens[from][tokenIndex] = lastOwnedTokensNftId; // Move the last token to the slot of the to-delete token
+		}
+
+		// This also deletes the contents at the last position of the array
+		delete _ownedTokensIndex[nftId];
+		delete _ownedTokens[from][lastOwnedTokensIndex];
+	}
+
+	// {_removeTokenFromAllTokensEnumeration} removes `nftId` from this extension's token-tracking data structures.
+	function _removeTokenFromAllTokensEnumeration(uint256 nftId) private {
+		// To prevent a gap in `_allTokens`, we store the last token in the index of the token to delete, and
+		// then delete the last slot (swap and pop).
+		uint256 lastAllTokensIndex = _allTokens.length - 1;
+		uint256 tokenIndex = _allTokensIndex[nftId];
+
+		// When the token to delete is the last token, the swap operation is unnecessary. However, since this occurs so
+		// rarely (when the last minted token is burnt) that we still do the swap here to avoid the quota cost of adding
+		// an `if` statement (like in _removeTokenFromOwnerEnumeration).
+		uint256 lastAllTokensNftId = _allTokens[lastAllTokensIndex];
+
+		_allTokens[tokenIndex] = lastAllTokensNftId; // Move the last token to the slot of the to-delete token
+		_allTokensIndex[lastAllTokensNftId] = tokenIndex; // Update the moved token's index
+
+		// This also deletes the contents at the last position of the array
+		delete _allTokensIndex[nftId];
+		_allTokens.pop();
+	}
+}

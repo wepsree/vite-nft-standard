@@ -1,0 +1,63 @@
+pragma soliditypp ^0.4.3;
+
+import "./VRC721.solpp";
+import "./IVRC721Metadata.solpp";
+import "./utils/Strings.solpp";
+
+// This implements an optional extension of {VRC721} which adds metadata of all
+// the nftIds in the contract as well as all nftIds owned by each account.
+
+contract VRC721Metadata is VRC721, IVRC721Metadata {
+	using Strings for uint256;
+
+	string private _name;
+	string private _symbol;
+	string private _baseTokenURI;
+
+	constructor(string memory name, string memory symbol) public {
+		_name = name;
+		_symbol = symbol;
+	}
+	
+	// See {IVRC721Metadata-name}
+	onMessage requestName() {
+		send(msg.sender, receiveName(_name));
+	}
+
+	// See {IVRC721Metadata-getName}
+	getter getName() returns (string memory name) {
+		return _name;
+	}
+
+	// See {IVRC721Metadata-requestSymbol}
+	onMessage requestSymbol() {
+		send(msg.sender, receiveSymbol(_symbol));
+	}
+
+	// See {IVRC721Metadata-getSymbol}
+	getter getSymbol() returns (string memory symbol) {
+		return _symbol;
+	}
+
+	// See {IVRC721Metadata-requestTokenURI}
+	onMessage requestTokenURI(uint256 nftId) {
+		send(msg.sender, receiveTokenURI(nftId, _getTokenURI(nftId)));
+	}
+
+	// See {IVRC721Metadata-getTokenURI}
+	getter getTokenURI(uint256 nftId) returns (string memory tokenURI) {
+		return _getTokenURI(nftId);
+	}
+
+	// {_getTokenURI} returns a concatenation of `_baseTokenURI` and `nftId` if `_baseTokenURI` exists
+	function _getTokenURI(uint256 nftId) public view returns (string memory tokenURI) {
+		require(VRC721._exists(nftId), "VRC721Metadata: URI query for nonexistent token");
+		return bytes(_baseTokenURI).length > 0 ? string(abi.encodePacked(_baseTokenURI, nftId.toString())) : "";
+	}
+
+	// solpp 0.4 does not support `override`, so couldn't have an
+	// overrideable `_baseURI` function like in OpenZeppelin
+	function _setBaseTokenURI(string memory baseTokenURI) internal {
+		_baseTokenURI = baseTokenURI;
+	}
+}

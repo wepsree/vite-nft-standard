@@ -1,0 +1,64 @@
+pragma soliditypp ^0.4.3;
+
+interface IVRC721 {
+	// Emitted when `nftId` NFT is transferred from `from` to `to`
+	event Transfer(address indexed from, address indexed to, uint256 indexed nftId);
+	// Emitted when `owner` enables `approved` to manage the `nftId` NFT
+	event Approval(address indexed owner, address indexed approved, uint256 indexed nftId);
+	// Emitted when `owner` sets `approved` `operator` to manage all of its NFTs
+	event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+	
+	// Send `balance` of NFTs owned by `owner`
+	message receiveBalanceOf(address owner, uint256 balance);
+	// Send `owner` (or `address(0)` if there is none) of `nftId` NFT
+	message receiveOwnerOf(uint256 nftId, address owner);
+	// Send the `operator` (or `address(0)` if there is none) approved to control `nftId`
+	message receiveApproved(uint256 nftId, address approved);
+	// Send whether or not `operator` is allowed to manage all NFTs owned by `owner`
+	message receiveIsApprovedForAll(address owner, address operator, bool isApprovedForAll);
+
+	// {requestBalanceOf} calls `send(msg.sender, receiveBalanceOf(...));`
+	onMessage requestBalanceOf(address owner);
+	// {getBalanceOf} returns info similar to `receiveBalanceOf`, but without `owner`.
+	getter getBalanceOf(address owner) returns (uint256 bal);
+
+	// {requestOwnerOf} calls `send(msg.sender, receiveOwnerOf(...));`
+	onMessage requestOwnerOf(uint256 nftId);
+	// {getOwnerOf} returns info similar to `receiveOwnerOf`, but without `nftId`.
+	getter getOwnerOf(uint256 nftId) returns (address owner);
+
+	// {transferFrom} transfers `nftId` NFT from `from` to `to`
+	// Requirements:
+	// - `from` cannot be the zero address
+	// - `to` cannot be the zero address
+	// - `nftId` NFT must be owned by `from`
+	// - If `msg.sender` is not `from`, it must be approved to move this NFT by either {approve} or {setApprovalForAll}
+	// Emits a `Transfer` event
+	onMessage transferFrom(address from, address to, uint256 nftId);
+
+	// {approve} gives permission to `to` to transfer `nftId` NFT to another account
+	// The approval is cleared when the NFT is transferred
+	// Only a single account can be approved at a time, so approving the zero address clears previous approvals
+	// Requirements:
+	// - The caller must own the NFT or be an approved operator
+	// - `nftId` must exist
+	// Emits an `Approval` event
+	onMessage approve(address to, uint256 nftId);
+
+	// {requestApproved} calls `send(msg.sender, receiveApproved(...));`
+	onMessage requestApproved(uint256 nftId);
+	// {getApproved} returns info similar to `receiveApproved`, but without `nftId`.
+	getter getApproved(uint256 nftId) returns (address approved);
+
+	// {setApprovalForAll} approves or removes `operator` as an operator for `msg.sender`
+	// Operators can call {transfer} for any NFT owned by `msg.sender`
+	// Requirements:
+	// - The `operator` cannot be `msg.sender`
+	// Emits an {ApprovalForAll} event
+	onMessage setApprovalForAll(address operator, bool approved);
+
+	// {requestIsApprovedForAll} calls `send(msg.sender, receiveIsApprovedForAll(...));`
+	onMessage requestIsApprovedForAll(address owner, address operator);
+	// {getIsApprovedForAll} returns info similar to `receiveIsApprovedForAll`, but without `owner` or `operator`.
+	getter getIsApprovedForAll(address owner, address operator) returns (bool isApprovedForAll);
+}

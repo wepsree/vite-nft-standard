@@ -1,0 +1,31 @@
+pragma soliditypp ^0.4.3;
+
+import "./standards/VRC721Metadata.solpp";
+import "./standards/utils/Ownable.solpp";
+
+contract VRC721MetadataMock is VRC721Metadata("Example", "EXM"), Ownable {
+	tokenId constant viteTokenId = "tti_5649544520544f4b454e6e40";
+	uint256 public mintingFee = 1 vite;
+	
+	message receiveBaseURI(string baseURI);
+
+	constructor() public {
+		_setBaseTokenURI("https://api.example.com/");
+	}
+
+	onMessage mint(address to, uint256 nftId) payable {
+		require(msg.tokenid == viteTokenId);
+		require(msg.amount >= mintingFee, "insufficient funds");
+		_mint(to, nftId);
+	}
+
+	onMessage burn(uint256 nftId) {
+		require(_isApprovedOrOwner(msg.sender, nftId));
+		_burn(nftId);
+	}
+
+	onMessage withdraw() {
+		onlyOwner();
+		_getOwner().transfer(viteTokenId, balance(viteTokenId));
+	}
+}

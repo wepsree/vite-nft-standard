@@ -1,0 +1,14 @@
+pragma soliditypp ^0.4.3;
+
+import "./standards/VRC721.solpp";
+
+contract VRC721Mock is VRC721 {
+	onMessage mint(address to, uint256 nftId) {
+		_mint(to, nftId);
+	}
+
+	onMessage burn(uint256 nftId) {
+		require(_isApprovedOrOwner(msg.sender, nftId));
+		_burn(nftId);
+	}
+}

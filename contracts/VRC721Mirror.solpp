@@ -1,0 +1,43 @@
+/*
+// Below is just an idea of how mirroring NFT's in Solidity++ 0.4.x to 0.8.x could work.
+// In order for this solution to work, the 0.4 contract must be `Ownable` so that the
+// mirror contract can have its `receiveOwner` function called.
+// The 0.8 compiler is not finished yet, so this code may not actually be valid Solidity++ 0.8 syntax.
+
+pragma soliditypp ^0.8.0;
+
+contract VRC721Mirror {
+	// mapping(solpp04Contract => solpp08Contract)
+	mapping(address => address) nftContractPairs;
+	// mapping(owner => mapping(solpp04 => solpp08))
+	mapping(address => mapping(address => address)) pendingContractPairs;
+
+	constructor (address addr) {
+		contractA = A(addr);
+	}
+
+	function proposeContractPair(address solpp04Contract, address solpp08Contract) external async {
+		pendingContractPairs[msg.sender][solpp04Contract] = solpp08Contract;
+		solpp04Contract.requestOwner();
+	}
+
+	function receiveOwner(address contractOwner) {
+		address pendingSolpp08Contract = pendingContractPairs[contractOwner][msg.sender]
+		require(pendingSolpp08Contract !== address(0));
+		nftContractPairs[msg.sender] = pendingSolpp08Contract;
+	}
+
+	function proposeMirrorToken(address solpp04Contract, uint256 nftId) {
+		address solpp08Contract = nftContractPairs[solpp04Contract];
+		require(solpp08Contract !== address(0));
+		solpp04Contract.requestOwnerOf(nftId);
+	}
+
+	function receiveOwnerOf(uint256 nftId, address owner) {
+		address solpp08Contract = nftContractPairs[solpp04Contract];
+		require(solpp08Contract !== address(0));
+		// `solpp08Contract`'s `mint` function should allow `address(this)` to call `mint`
+		solpp08Contract.mint(owner, nftId); // NFT from solpp04 should now be mirrored in solpp08
+	}
+}
+*/
